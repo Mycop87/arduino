@@ -30,7 +30,7 @@
 */
 // ------------------------ НАСТРОЙКИ ----------------------------
 // настройки пределов скорости и температуры по умолчанию (на случай отсутствия связи)
-byte speedMIN = 10, speedMAX = 90, tempMIN = 30, tempMAX = 70;
+byte speedMIN = 40, speedMAX = 99, tempMIN = 30, tempMAX = 60;
 #define DRIVER_VERSION 1    // 0 - маркировка драйвера кончается на 4АТ, 1 - на 4Т
 #define COLOR_ALGORITM 0    // 0 или 1 - разные алгоритмы изменения цвета (строка 222)
 #define ERROR_DUTY 90       // скорость вентиляторов при потере связи
@@ -40,9 +40,6 @@ byte speedMIN = 10, speedMAX = 90, tempMIN = 30, tempMAX = 70;
 
 // ----------------------- ПИНЫ ---------------------------
 #define FAN_PIN 9           // на мосфет вентиляторов
-#define R_PIN 5             // на мосфет ленты, красный
-#define G_PIN 3             // на мосфет ленты, зелёный
-#define B_PIN 6             // на мосфет ленты, синий
 #define BTN1 A3             // первая кнопка
 #define BTN2 A2             // вторая кнопка
 #define SENSOR_PIN 14       // датчик температуры
@@ -137,12 +134,7 @@ static const char *plotNames1[]  = {
 void setup() {
   Serial.begin(9600);
   Timer1.initialize(40);   // поставить частоту ШИМ 25 кГц (40 микросекунд)
-  pinMode(R_PIN, OUTPUT);
-  pinMode(G_PIN, OUTPUT);
-  pinMode(B_PIN, OUTPUT);
-  digitalWrite(R_PIN, 0);
-  digitalWrite(G_PIN, 0);
-  digitalWrite(B_PIN, 0);
+
   pinMode(BTN1, INPUT_PULLUP);
   pinMode(BTN2, INPUT_PULLUP);
   sensors.begin();
@@ -157,9 +149,8 @@ void setup() {
   show_logo();            // показать логотип
   delay(2000);
   lcd.clear();            // очистить дисплей
-  show_logo2();            // показать логотип
 
-  Timer1.pwm(FAN_PIN, 400);  // включить вентиляторы на 40%
+  Timer1.pwm(FAN_PIN, 900);  // включить вентиляторы на 40%
   delay(2000);               // на 2 секунды
   lcd.clear();               // очистить дисплей
   PCdata[8] = speedMAX;
@@ -176,7 +167,6 @@ void loop() {
   getTemperature();                   // получить значения с датчиков температуры
   dutyCalculate();                    // посчитать скважность для вентиляторов
   Timer1.pwm(FAN_PIN, duty * 10);     // управлять вентиляторами
-  LEDcontrol();                       // управлять цветом ленты
   buttonsTick();                      // опрос кнопок и смена режимов
   updateDisplay();                    // обновить показания на дисплее
   timeoutTick();                      // проверка таймаута
@@ -213,72 +203,6 @@ void getTemperature() {
     temp2 = sensors.getTempC(Thermometer2);
     updateTemp_flag = 0;
   }
-}
-void LEDcontrol() {
-  b = PCdata[16];
-  if (PCdata[13] == 1)          // если стоит галочка Manual Color
-    LEDcolor = PCdata[15];      // цвет равен установленному ползунком
-  else {                        // если нет
-    LEDcolor = map(mainTemp, PCdata[11], PCdata[10], 0, 1000);
-    LEDcolor = constrain(LEDcolor, 0, 1000);
-  }
-
-  if (COLOR_ALGORITM) {
-    // алгоритм цвета 1
-    // синий убавляется, зелёный прибавляется
-    // зелёный убавляется, красный прибавляется
-    if (LEDcolor <= 500) {
-      k = map(LEDcolor, 0, 500, 0, 255);
-      R = 0;
-      G = k;
-      B = 255 - k;
-    }
-    if (LEDcolor > 500) {
-      k = map(LEDcolor, 500, 1000, 0, 255);
-      R = k;
-      G = 255 - k;
-      B = 0;
-    }
-
-  } else {
-    // алгоритм цвета 2
-    // синий максимум, плавно прибавляется зелёный
-    // зелёный максимум, плавно убавляется синий
-    // зелёный максимум, плавно прибавляется красный
-    // красный максимум, плавно убавляется зелёный
-
-    if (LEDcolor <= 250) {
-      k = map(LEDcolor, 0, 250, 0, 255);
-      R = 0;
-      G = k;
-      B = 255;
-    }
-    if (LEDcolor > 250 && LEDcolor <= 500) {
-      k = map(LEDcolor, 250, 500, 0, 255);
-      R = 0;
-      G = 255;
-      B = 255 - k;
-    }
-    if (LEDcolor > 500 && LEDcolor <= 750) {
-      k = map(LEDcolor, 500, 750, 0, 255);
-      R = k;
-      G = 255;
-      B = 0;
-    }
-    if (LEDcolor > 750 && LEDcolor <= 1000) {
-      k = map(LEDcolor, 750, 1000, 0, 255);
-      R = 255;
-      G = 255 - k;
-      B = 0;
-    }
-  }
-
-  Rf = (b * R / 100);
-  Gf = (b * G / 100);
-  Bf = (b * B / 100);
-  analogWrite(R_PIN, Rf);
-  analogWrite(G_PIN, Gf);
-  analogWrite(B_PIN, Bf);
 }
 
 void dutyCalculate() {
@@ -603,15 +527,7 @@ void show_logo() {
   lcd.printByte(4);
   lcd.printByte(5);
   lcd.setCursor(4, 0);
-  lcd.print("AlexGyver");
-  lcd.setCursor(4, 1);
-  lcd.print("Technologies");
-}
-void show_logo2() {
-  lcd.setCursor(1, 0);
-  lcd.print("modified by");
-  lcd.setCursor(5, 1);
-  lcd.print("klykov.net");
+  lcd.print("Initialize");
 }
 void debug() {
   lcd.clear();
